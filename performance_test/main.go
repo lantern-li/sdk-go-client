@@ -21,8 +21,6 @@ const (
 	testRwsetByteCodePath = "./config/test_rwset.wasm"
 
 	sdkConfigOrg1Client1Path = "./config/sdk_config.yml"
-
-	blockTxCapacity = 1000
 )
 
 // 交易数据结构
@@ -171,10 +169,7 @@ func generateTransactions(config PerfTestConfig) []Transaction {
 
 	// 计算 key pool 大小
 	// 冲突率越高，key pool 越小，交易访问相同 key 的概率越大
-	keyPoolSize := int(float64(blockTxCapacity) * (1.0 - config.ConflictRate))
-	if keyPoolSize < 1 {
-		keyPoolSize = 1 // 至少有 1 个 key
-	} // todo:keyPoolSize控制在1到1000之间，因为一个区块的交易容量是1000
+	keyPoolSize := 10 // 5 10 20 30 40 50 60 70 80 90 100
 
 	fmt.Printf("  - Key Pool 大小: %d", keyPoolSize)
 
