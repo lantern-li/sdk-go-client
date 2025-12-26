@@ -21,6 +21,8 @@ const (
 	testRwsetByteCodePath = "./config/test_rwset.wasm"
 
 	sdkConfigOrg1Client1Path = "./config/sdk_config.yml"
+
+	blockTxCapacity = 1000
 )
 
 // 交易数据结构
@@ -34,17 +36,18 @@ type Transaction struct {
 
 // 性能测试配置
 type PerfTestConfig struct {
-	KeyPoolSize    int // Key Pool 大小 (5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 等)
-	TotalTxCount   int // 总交易数
-	GoroutineCount int // 并发 goroutine 数量
+	ConflictRate     float64 // 冲突率 (0.0 - 1.0)
+	ConflictKeyCount int     // 将冲突分散到多少个不同的 key 上
+	TotalTxCount     int     // 总交易数
+	GoroutineCount   int     // 并发 goroutine 数量
 }
 
 func main() {
-	fmt.Println("====================== ChainMaker 性能压测工具 ======================")
+	fmt.Println("====================== ChainMaker 性能压测工具 (分散冲突) ======================")
 	fmt.Println("合约: test_rwset_contract")
 	fmt.Println("方法: test_rwset")
-	fmt.Println("场景: 不同 Key Pool 大小下的性能测试")
-	fmt.Println("===================================================================\n")
+	fmt.Println("场景: 不同冲突率下的性能测试（分散冲突模式）")
+	fmt.Println("==========================================================================\n")
 
 	// 创建客户端
 	client, err := sdk.NewChainClient(
@@ -57,24 +60,20 @@ func main() {
 
 	// 测试场景配置
 	testConfigs := []PerfTestConfig{
-		{KeyPoolSize: 1000, TotalTxCount: 1000000, GoroutineCount: 100}, // Key Pool = 10 (冲突率高)
-		//{KeyPoolSize: 50, TotalTxCount: 1000000, GoroutineCount: 100},  // Key Pool = 50 (冲突率中)
-		//{KeyPoolSize: 100, TotalTxCount: 1000000, GoroutineCount: 100}, // Key Pool = 100 (冲突率低)
+		{ConflictRate: 0, ConflictKeyCount: 10, TotalTxCount: 10000, GoroutineCount: 100}, // 10% 冲突率，分散到 10 个 key
 		// 可以添加更多场景
-		// {KeyPoolSize: 5, TotalTxCount: 1000, GoroutineCount: 10},   // Key Pool = 5 (冲突率很高)
-		// {KeyPoolSize: 20, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 20
-		// {KeyPoolSize: 30, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 30
-		// {KeyPoolSize: 40, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 40
-		// {KeyPoolSize: 60, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 60
-		// {KeyPoolSize: 70, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 70
-		// {KeyPoolSize: 80, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 80
-		// {KeyPoolSize: 90, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 90
+		// {ConflictRate: 0.0, ConflictKeyCount: 1, TotalTxCount: 1000, GoroutineCount: 10},   // 0% 冲突率
+		// {ConflictRate: 0.1, ConflictKeyCount: 5, TotalTxCount: 1000, GoroutineCount: 10},   // 10% 冲突率，分散到 5 个 key
+		// {ConflictRate: 0.3, ConflictKeyCount: 10, TotalTxCount: 1000, GoroutineCount: 10},  // 30% 冲突率，分散到 10 个 key
+		// {ConflictRate: 0.5, ConflictKeyCount: 20, TotalTxCount: 1000, GoroutineCount: 10},  // 50% 冲突率，分散到 20 个 key
+		// {ConflictRate: 1.0, ConflictKeyCount: 50, TotalTxCount: 1000, GoroutineCount: 10},  // 100% 冲突率，分散到 50 个 key
 	}
 
 	// 执行测试场景
 	for i, config := range testConfigs {
 		fmt.Printf("\n\n==================== 测试场景 %d ====================\n", i+1)
-		fmt.Printf("Key Pool 大小: %d\n", config.KeyPoolSize)
+		fmt.Printf("冲突率: %.1f%%\n", config.ConflictRate*100)
+		fmt.Printf("冲突 key 数量: %d\n", config.ConflictKeyCount)
 		fmt.Printf("总交易数: %d\n", config.TotalTxCount)
 		fmt.Printf("并发数: %d goroutines\n", config.GoroutineCount)
 		fmt.Println("==================================================\n")
@@ -167,28 +166,36 @@ func runPerfTest(client *sdk.ChainClient, config PerfTestConfig) {
 	fmt.Println("------------------------------------------------------------")
 }
 
-// generateTransactions 生成交易
-// 冲突机制：交易读或写 key 时，都从固定大小的 key pool 中随机选取
-// key pool 越小，冲突的可能性越高；key pool 越大，冲突的可能性越小
+// generateTransactions 生成交易（分散冲突模式）
+// 冲突率计算：假设有 N 笔交易，冲突率为 R，冲突 key 数量为 K
+//   - 冲突交易数：conflictTxCount = N * R
+//   - 无冲突交易数：nonConflictTxCount = N * (1 - R)
+//   - 无冲突部分：每笔交易使用唯一的 key（unique_key_0, unique_key_1, ...）
+//   - 冲突部分：将 conflictTxCount 笔交易分散到 K 个冲突 key 上
+//     例如：100 笔冲突交易，K=10，则每个 conflict_key_0 ~ conflict_key_9 各有约 10 笔交易
 func generateTransactions(config PerfTestConfig) []Transaction {
 	transactions := make([]Transaction, config.TotalTxCount)
 
-	// 使用配置的 key pool 大小
-	keyPoolSize := config.KeyPoolSize
-	fmt.Printf("  - Key Pool 大小: %d (Key Pool 越小，冲突越高)\n", keyPoolSize)
+	// 计算冲突和非冲突交易数量
+	conflictTxCount := int(float64(config.TotalTxCount) * config.ConflictRate)
+	nonConflictTxCount := config.TotalTxCount - conflictTxCount
 
-	// 生成 key pool
-	keyPool := make([]string, keyPoolSize)
-	for i := 0; i < keyPoolSize; i++ {
-		keyPool[i] = fmt.Sprintf("key_%d", i)
+	// 计算每个冲突 key 平均有多少笔交易
+	avgTxPerConflictKey := 0
+	if config.ConflictKeyCount > 0 && conflictTxCount > 0 {
+		avgTxPerConflictKey = conflictTxCount / config.ConflictKeyCount
 	}
 
-	// 生成交易
+	fmt.Printf("  - 无冲突交易数: %d (每笔交易访问唯一的 key)\n", nonConflictTxCount)
+	fmt.Printf("  - 冲突交易数: %d (分散到 %d 个冲突 key，平均每个 key 约 %d 笔交易)\n",
+		conflictTxCount, config.ConflictKeyCount, avgTxPerConflictKey)
+
 	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < config.TotalTxCount; i++ {
-		// 从 key pool 中随机选择 key
-		readKey := keyPool[rand.Intn(keyPoolSize)]
-		writeKey := keyPool[rand.Intn(keyPoolSize)]
+
+	// 生成无冲突交易：每笔交易使用唯一的 key
+	for i := 0; i < nonConflictTxCount; i++ {
+		readKey := fmt.Sprintf("unique_key_%d", i)
+		writeKey := fmt.Sprintf("unique_key_%d", i)
 
 		transactions[i] = Transaction{
 			ReadKey:    readKey,
@@ -196,6 +203,27 @@ func generateTransactions(config PerfTestConfig) []Transaction {
 			WriteKey:   writeKey,
 			WriteField: "", // 空，使用合约默认值 "data"
 			WriteValue: fmt.Sprintf("value_%d_%d", i, time.Now().UnixNano()),
+		}
+	}
+
+	// 生成冲突交易：将交易分散到多个冲突 key 上
+	// 例如：100 笔冲突交易，10 个 key
+	// - conflict_key_0: 交易 0-9
+	// - conflict_key_1: 交易 10-19
+	// - ...
+	// - conflict_key_9: 交易 90-99
+	for i := 0; i < conflictTxCount; i++ {
+		// 确定这笔交易应该访问哪个冲突 key
+		conflictKeyIndex := i % config.ConflictKeyCount
+		conflictKey := fmt.Sprintf("conflict_key_%d", conflictKeyIndex)
+
+		txIndex := nonConflictTxCount + i
+		transactions[txIndex] = Transaction{
+			ReadKey:    conflictKey,
+			ReadField:  "", // 空，使用合约默认值 "data"
+			WriteKey:   conflictKey,
+			WriteField: "", // 空，使用合约默认值 "data"
+			WriteValue: fmt.Sprintf("value_%d_%d", txIndex, time.Now().UnixNano()),
 		}
 	}
 
