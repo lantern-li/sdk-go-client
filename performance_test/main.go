@@ -34,16 +34,16 @@ type Transaction struct {
 
 // 性能测试配置
 type PerfTestConfig struct {
-	ConflictRate   float64 // 冲突率 (0.0 - 1.0)
-	TotalTxCount   int     // 总交易数
-	GoroutineCount int     // 并发 goroutine 数量
+	KeyPoolSize    int // Key Pool 大小 (5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 等)
+	TotalTxCount   int // 总交易数
+	GoroutineCount int // 并发 goroutine 数量
 }
 
 func main() {
 	fmt.Println("====================== ChainMaker 性能压测工具 ======================")
 	fmt.Println("合约: test_rwset_contract")
 	fmt.Println("方法: test_rwset")
-	fmt.Println("场景: 不同冲突率下的性能测试")
+	fmt.Println("场景: 不同 Key Pool 大小下的性能测试")
 	fmt.Println("===================================================================\n")
 
 	// 创建客户端
@@ -57,18 +57,24 @@ func main() {
 
 	// 测试场景配置
 	testConfigs := []PerfTestConfig{
-		{ConflictRate: 0.9, TotalTxCount: 1000000, GoroutineCount: 100}, // 10% 冲突率
+		{KeyPoolSize: 10, TotalTxCount: 1000000, GoroutineCount: 100}, // Key Pool = 10 (冲突率高)
+		//{KeyPoolSize: 50, TotalTxCount: 1000000, GoroutineCount: 100},  // Key Pool = 50 (冲突率中)
+		//{KeyPoolSize: 100, TotalTxCount: 1000000, GoroutineCount: 100}, // Key Pool = 100 (冲突率低)
 		// 可以添加更多场景
-		// {ConflictRate: 0.0, TotalTxCount: 1000, GoroutineCount: 10},  // 0% 冲突率
-		// {ConflictRate: 0.3, TotalTxCount: 1000, GoroutineCount: 10},  // 30% 冲突率
-		// {ConflictRate: 0.5, TotalTxCount: 1000, GoroutineCount: 10},  // 50% 冲突率
-		// {ConflictRate: 1.0, TotalTxCount: 1000, GoroutineCount: 10},  // 100% 冲突率
+		// {KeyPoolSize: 5, TotalTxCount: 1000, GoroutineCount: 10},   // Key Pool = 5 (冲突率很高)
+		// {KeyPoolSize: 20, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 20
+		// {KeyPoolSize: 30, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 30
+		// {KeyPoolSize: 40, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 40
+		// {KeyPoolSize: 60, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 60
+		// {KeyPoolSize: 70, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 70
+		// {KeyPoolSize: 80, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 80
+		// {KeyPoolSize: 90, TotalTxCount: 1000, GoroutineCount: 10},  // Key Pool = 90
 	}
 
 	// 执行测试场景
 	for i, config := range testConfigs {
 		fmt.Printf("\n\n==================== 测试场景 %d ====================\n", i+1)
-		fmt.Printf("冲突率: %.1f%%\n", config.ConflictRate*100)
+		fmt.Printf("Key Pool 大小: %d\n", config.KeyPoolSize)
 		fmt.Printf("总交易数: %d\n", config.TotalTxCount)
 		fmt.Printf("并发数: %d goroutines\n", config.GoroutineCount)
 		fmt.Println("==================================================\n")
@@ -162,16 +168,14 @@ func runPerfTest(client *sdk.ChainClient, config PerfTestConfig) {
 }
 
 // generateTransactions 生成交易
-// 冲突率计算：假设有 N 笔交易，冲突率为 R
-// keyPoolSize = N * (1 - R)，这样 N 笔交易访问 keyPoolSize 个不同的 key
+// 冲突机制：交易读或写 key 时，都从固定大小的 key pool 中随机选取
+// key pool 越小，冲突的可能性越高；key pool 越大，冲突的可能性越小
 func generateTransactions(config PerfTestConfig) []Transaction {
 	transactions := make([]Transaction, config.TotalTxCount)
 
-	// 计算 key pool 大小
-	// 冲突率越高，key pool 越小，交易访问相同 key 的概率越大
-	keyPoolSize := 10 // 5 10 20 30 40 50 60 70 80 90 100
-
-	fmt.Printf("  - Key Pool 大小: %d", keyPoolSize)
+	// 使用配置的 key pool 大小
+	keyPoolSize := config.KeyPoolSize
+	fmt.Printf("  - Key Pool 大小: %d (Key Pool 越小，冲突越高)\n", keyPoolSize)
 
 	// 生成 key pool
 	keyPool := make([]string, keyPoolSize)
