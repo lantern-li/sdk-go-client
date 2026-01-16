@@ -36,7 +36,7 @@ func main() {
 
 	// test_rwset 合约相关
 	//deployTestRwsetContract()
-	//invokeTestRwsetContract()
+	invokeTestRwsetContract()
 
 	// smallbank合约相关
 	//deploySmallbankContract()
@@ -45,7 +45,7 @@ func main() {
 	//invokeSmallbankTransactSaving()
 	//invokeSmallbankAmalgamate()
 	//invokeSmallbankWriteCheck()
-	invokeSmallbankSendPayment()
+	//invokeSmallbankSendPayment()
 }
 
 func userContractClaim() {
@@ -153,20 +153,40 @@ func invokeTestRwsetContract() {
 	)
 	panicErr(err)
 
-	// 准备调用参数
+	// 准备调用参数 - 支持3个读key和3个写key
 	curTime := strconv.FormatInt(time.Now().Unix(), 10)
 	kvs := []*common.KeyValuePair{
+		// 第一组读参数
 		{
 			Key:   "read_key",
-			Value: []byte(fmt.Sprintf("test_read_key_%s", curTime)),
+			Value: []byte(fmt.Sprintf("test_read_key_1_%s", curTime)),
 		},
 		{
 			Key:   "read_field",
 			Value: []byte(""), // 空，使用默认值 "data"
 		},
+		// 第二组读参数
+		{
+			Key:   "read_key2",
+			Value: []byte(fmt.Sprintf("test_read_key_2_%s", curTime)),
+		},
+		{
+			Key:   "read_field2",
+			Value: []byte(""), // 空，使用默认值 "data"
+		},
+		// 第三组读参数
+		{
+			Key:   "read_key3",
+			Value: []byte(fmt.Sprintf("test_read_key_3_%s", curTime)),
+		},
+		{
+			Key:   "read_field3",
+			Value: []byte(""), // 空，使用默认值 "data"
+		},
+		// 第一组写参数
 		{
 			Key:   "write_key",
-			Value: []byte(fmt.Sprintf("test_write_key_%s", curTime)),
+			Value: []byte(fmt.Sprintf("test_write_key_1_%s", curTime)),
 		},
 		{
 			Key:   "write_field",
@@ -174,16 +194,45 @@ func invokeTestRwsetContract() {
 		},
 		{
 			Key:   "write_value",
-			Value: []byte(fmt.Sprintf("test_value_%s", curTime)),
+			Value: []byte(fmt.Sprintf("test_value_1_%s", curTime)),
+		},
+		// 第二组写参数
+		{
+			Key:   "write_key2",
+			Value: []byte(fmt.Sprintf("test_write_key_2_%s", curTime)),
+		},
+		{
+			Key:   "write_field2",
+			Value: []byte(""), // 空，使用默认值 "data"
+		},
+		{
+			Key:   "write_value2",
+			Value: []byte(fmt.Sprintf("test_value_2_%s", curTime)),
+		},
+		// 第三组写参数
+		{
+			Key:   "write_key3",
+			Value: []byte(fmt.Sprintf("test_write_key_3_%s", curTime)),
+		},
+		{
+			Key:   "write_field3",
+			Value: []byte(""), // 空，使用默认值 "data"
+		},
+		{
+			Key:   "write_value3",
+			Value: []byte(fmt.Sprintf("test_value_3_%s", curTime)),
 		},
 	}
 
 	fmt.Println("调用参数:")
-	fmt.Printf("  - read_key: test_read_key_%s\n", curTime)
-	fmt.Printf("  - read_field: (空，使用默认 'data')\n")
-	fmt.Printf("  - write_key: test_write_key_%s\n", curTime)
-	fmt.Printf("  - write_field: (空，使用默认 'data')\n")
-	fmt.Printf("  - write_value: test_value_%s\n\n", curTime)
+	fmt.Println("读集参数:")
+	fmt.Printf("  - read_key: test_read_key_1_%s (field: data)\n", curTime)
+	fmt.Printf("  - read_key2: test_read_key_2_%s (field: data)\n", curTime)
+	fmt.Printf("  - read_key3: test_read_key_3_%s (field: data)\n", curTime)
+	fmt.Println("写集参数:")
+	fmt.Printf("  - write_key: test_write_key_1_%s (field: data, value: test_value_1_%s)\n", curTime, curTime)
+	fmt.Printf("  - write_key2: test_write_key_2_%s (field: data, value: test_value_2_%s)\n", curTime, curTime)
+	fmt.Printf("  - write_key3: test_write_key_3_%s (field: data, value: test_value_3_%s)\n\n", curTime, curTime)
 
 	// 调用合约
 	resp, err := client.InvokeContract(testRwsetContractName, "test_rwset", "", kvs, -1, true)
