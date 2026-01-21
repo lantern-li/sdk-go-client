@@ -35,8 +35,8 @@ func main() {
 	//userContractClaim()
 
 	// test_rwset 合约相关
-	//deployTestRwsetContract()
-	invokeTestRwsetContract()
+	deployTestRwsetContract()
+	//invokeTestRwsetContract()
 
 	// smallbank合约相关
 	//deploySmallbankContract()

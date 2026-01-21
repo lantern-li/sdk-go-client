@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 	"math/rand"
 	"sync"
@@ -10,6 +11,8 @@ import (
 type Distribution interface {
 	// Next 返回下一个key的索引 (0到recordCount-1)
 	Next() int64
+	// RecordCount 返回键空间大小
+	RecordCount() int64
 }
 
 // UniformDistribution 均匀分布
@@ -32,6 +35,11 @@ func (u *UniformDistribution) Next() int64 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return u.rng.Int63n(u.recordCount)
+}
+
+// RecordCount 返回键空间大小
+func (u *UniformDistribution) RecordCount() int64 {
+	return u.recordCount
 }
 
 // ZipfianDistribution 齐普夫分布
@@ -99,6 +107,11 @@ func (z *ZipfianDistribution) zeta(n int64, theta float64) float64 {
 	return sum
 }
 
+// RecordCount 返回键空间大小
+func (z *ZipfianDistribution) RecordCount() int64 {
+	return z.recordCount
+}
+
 // KeySelector 用于选择唯一的key
 type KeySelector struct {
 	dist Distribution
@@ -116,8 +129,8 @@ func (ks *KeySelector) SelectUniqueKeys(count int) []int64 {
 	keys := make([]int64, 0, count)
 	seen := make(map[int64]bool)
 
-	// 最多尝试count*10次，避免死循环
-	maxAttempts := count * 10
+	// 主策略：大幅增加尝试次数到 count*150
+	maxAttempts := count * 150
 	attempts := 0
 
 	for len(keys) < count && attempts < maxAttempts {
@@ -129,12 +142,17 @@ func (ks *KeySelector) SelectUniqueKeys(count int) []int64 {
 		attempts++
 	}
 
-	// 如果还不够，用递增的方式补齐（这种情况很少发生） // todo:思考这样是否会影响到均匀分布或者zip分布的严谨性？
+	// Fallback策略：使用均匀随机而非顺序补齐
 	if len(keys) < count {
-		for i := int64(0); len(keys) < count; i++ {
-			if !seen[i] {
-				keys = append(keys, i)
-				seen[i] = true
+		log.Printf("Warning: Fallback triggered, got %d/%d keys after %d attempts", len(keys), count, attempts)
+		recordCount := ks.dist.RecordCount()
+		rng := rand.New(rand.NewSource(rand.Int63()))
+
+		for len(keys) < count {
+			key := rng.Int63n(recordCount)
+			if !seen[key] {
+				keys = append(keys, key)
+				seen[key] = true
 			}
 		}
 	}

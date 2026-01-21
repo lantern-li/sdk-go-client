@@ -63,6 +63,10 @@ go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -skew 0.99
 go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -skew 1.5
 ```
 
+tail -f system.log | grep -i tps
+scp -r root@192.168.1.10:/data/logs ~/Downloads/
+Add tx failed, TxPool is full
+
 ## 使用方法
 
 ### 命令行参数
