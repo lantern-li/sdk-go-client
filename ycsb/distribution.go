@@ -129,8 +129,8 @@ func (ks *KeySelector) SelectUniqueKeys(count int) []int64 {
 	keys := make([]int64, 0, count)
 	seen := make(map[int64]bool)
 
-	// 主策略：大幅增加尝试次数到 count*150
-	maxAttempts := count * 150
+	// 主策略：大幅增加尝试次数到 count*200
+	maxAttempts := count * 200
 	attempts := 0
 
 	for len(keys) < count && attempts < maxAttempts {
