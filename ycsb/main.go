@@ -46,6 +46,7 @@ var (
 	totalTxCount   = flag.Int("txcount", 10000, "总交易数")
 	goroutineCount = flag.Int("goroutines", 10, "并发goroutine数量")
 	skew           = flag.Float64("skew", 0.99, "Zipfian分布的偏斜参数 (0.0-2.0)")
+	generateGraph  = flag.Bool("generate-graph", false, "生成交易依赖图（不发送到链上）")
 )
 
 func main() {
@@ -73,15 +74,6 @@ func main() {
 		log.Fatal("错误: -goroutines 参数必须 >= 1")
 	}
 
-	// 创建客户端
-	client, err := sdk.NewChainClient(
-		sdk.WithConfPath(sdkConfigOrg1Client1Path),
-	)
-	panicErr(err)
-
-	// 检查并部署合约
-	ensureContractDeployed(client)
-
 	// 构建测试配置
 	config := TestConfig{
 		DistributionType: *distType,
@@ -90,6 +82,25 @@ func main() {
 		GoroutineCount:   *goroutineCount,
 		Skew:             *skew,
 	}
+
+	// 如果指定了 --generate-graph 参数，则生成图而不是发送交易
+	if *generateGraph {
+		err := GenerateTransactionGraph(config, "./")
+		if err != nil {
+			log.Fatalf("生成交易依赖图失败: %v", err)
+		}
+		return
+	}
+
+	// 否则，执行正常的性能测试流程
+	// 创建客户端
+	client, err := sdk.NewChainClient(
+		sdk.WithConfPath(sdkConfigOrg1Client1Path),
+	)
+	panicErr(err)
+
+	// 检查并部署合约
+	ensureContractDeployed(client)
 
 	// 运行测试
 	runTest(client, config)
