@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"chainmaker.org/chainmaker/common/v2/random/uuid"
 	"chainmaker.org/chainmaker/pb-go/v2/common"
 	sdk "chainmaker.org/chainmaker/sdk-go/v2"
 )
@@ -35,12 +36,12 @@ func main() {
 	//userContractClaim()
 
 	// test_rwset 合约相关
-	deployTestRwsetContract()
+	//deployTestRwsetContract()
 	//invokeTestRwsetContract()
 
 	// smallbank合约相关
 	//deploySmallbankContract()
-	//invokeSmallbankCreateAccount()
+	invokeSmallbankCreateAccount()
 	//invokeSmallbankDepositChecking()
 	//invokeSmallbankTransactSaving()
 	//invokeSmallbankAmalgamate()
@@ -56,47 +57,47 @@ func userContractClaim() {
 	)
 	panicErr(err)
 
-	//fmt.Println("====================== 创建合约 ======================")
-	//createPayload, err := client.CreateContractCreatePayload(claimContractName, claimVersion, claimByteCodePath, common.RuntimeType_WASMER, []*common.KeyValuePair{})
-	//panicErr(err)
-	//resp, err := client.SendContractManageRequest(createPayload, nil, createContractTimeout, true)
-	//panicErr(err)
-	//fmt.Printf("blockHeight:%d, txId:%s, result:%s, msg:%s\n\n", resp.TxBlockHeight, resp.TxId, resp.ContractResult.Result, resp.ContractResult.Message)
+	fmt.Println("====================== 创建合约 ======================")
+	createPayload, err := client.CreateContractCreatePayload(claimContractName, claimVersion, claimByteCodePath, common.RuntimeType_WASMER, []*common.KeyValuePair{})
+	panicErr(err)
+	resp, err := client.SendContractManageRequest(createPayload, nil, createContractTimeout, true)
+	panicErr(err)
+	fmt.Printf("blockHeight:%d, txId:%s, result:%s, msg:%s\n\n", resp.TxBlockHeight, resp.TxId, resp.ContractResult.Result, resp.ContractResult.Message)
 
-	//fmt.Println("====================== 调用合约 ======================")
-	//curTime := strconv.FormatInt(time.Now().Unix(), 10)
-	//fileHash := uuid.GetUUID()
-	//kvs := []*common.KeyValuePair{
-	//	{
-	//		Key:   "time",
-	//		Value: []byte(curTime),
-	//	},
-	//	{
-	//		Key:   "file_hash",
-	//		Value: []byte(fileHash),
-	//	},
-	//	{
-	//		Key:   "file_name",
-	//		Value: []byte(fmt.Sprintf("file_%s", curTime)),
-	//	},
-	//}
-	//resp, err := client.InvokeContract(claimContractName, "save", "", kvs, -1, true)
-	//panicErr(err)
-	//if resp.Code != common.TxStatusCode_SUCCESS {
-	//	err = fmt.Errorf("invoke contract failed, [code:%d]/[msg:%s]\n", resp.Code, resp.Message)
-	//	panicErr(err)
-	//}
-	//fmt.Printf("blockHeight:%d, txId:%s, result:%s, msg:%s, fileHash:%s\n\n",
-	//	resp.TxBlockHeight, resp.TxId, resp.ContractResult.Result, resp.ContractResult.Message, fileHash)
+	fmt.Println("====================== 调用合约 ======================")
+	curTime := strconv.FormatInt(time.Now().Unix(), 10)
+	fileHash := uuid.GetUUID()
+	kvs := []*common.KeyValuePair{
+		{
+			Key:   "time",
+			Value: []byte(curTime),
+		},
+		{
+			Key:   "file_hash",
+			Value: []byte(fileHash),
+		},
+		{
+			Key:   "file_name",
+			Value: []byte(fmt.Sprintf("file_%s", curTime)),
+		},
+	}
+	resp, err = client.InvokeContract(claimContractName, "save", "", kvs, -1, true)
+	panicErr(err)
+	if resp.Code != common.TxStatusCode_SUCCESS {
+		err = fmt.Errorf("invoke contract failed, [code:%d]/[msg:%s]\n", resp.Code, resp.Message)
+		panicErr(err)
+	}
+	fmt.Printf("blockHeight:%d, txId:%s, result:%s, msg:%s, fileHash:%s\n\n",
+		resp.TxBlockHeight, resp.TxId, resp.ContractResult.Result, resp.ContractResult.Message, fileHash)
 
 	fmt.Println("====================== 执行合约查询接口 ======================")
-	kvs := []*common.KeyValuePair{
+	kvs = []*common.KeyValuePair{
 		{
 			Key:   "file_hash",
 			Value: []byte("3d0372e176c240efa0693873de1844bd"),
 		},
 	}
-	resp, err := client.QueryContract(claimContractName, "find_by_file_hash", kvs, -1)
+	resp, err = client.QueryContract(claimContractName, "find_by_file_hash", kvs, -1)
 	panicErr(err)
 
 	fmt.Printf("QUERY claim contract resp: %+v\n\n", resp)
@@ -348,7 +349,7 @@ func invokeSmallbankDepositChecking() {
 	panicErr(err)
 
 	// 准备调用参数 - 向 checking 账户存款
-	accountName := "Alice_1234567890" // 使用已创建的账户名
+	accountName := "Bob_1234567890" // 使用已创建的账户名
 	amount := "5000"
 
 	kvs := []*common.KeyValuePair{
@@ -391,8 +392,8 @@ func invokeSmallbankTransactSaving() {
 	panicErr(err)
 
 	// 准备调用参数 - saving 账户交易 (正数存款，负数取款)
-	accountName := "Alice_1234567890" // 使用已创建的账户名
-	amount := "3000"                  // 正数表示存款，可以改为 "-2000" 表示取款
+	accountName := "Bob_1234567890" // 使用已创建的账户名
+	amount := "3000"                // 正数表示存款，可以改为 "-2000" 表示取款
 
 	kvs := []*common.KeyValuePair{
 		{
@@ -477,8 +478,8 @@ func invokeSmallbankWriteCheck() {
 	panicErr(err)
 
 	// 准备调用参数 - 开支票
-	accountName := "Alice_1234567890" // 使用已创建的账户名
-	amount := "8000"                  // 支票金额
+	accountName := "Bob_1234567890" // 使用已创建的账户名
+	amount := "8000"                // 支票金额
 
 	kvs := []*common.KeyValuePair{
 		{

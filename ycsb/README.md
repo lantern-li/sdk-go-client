@@ -16,6 +16,44 @@
 - **写集**：3个不同的 key（保证唯一性）
 - **读集和写集之间的 key 可以重复**（符合真实场景）
 
+### 快速测试命令
+```bash
+# 实时查看测试性能
+cd /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/log/
+tail -f system.log | grep -i tps
+
+# 分析tps
+cd /home/performanceTest/chainmaker-go/
+go run tools/analyze_tps.go -type reorder
+
+# 启/停链
+cd /home/performanceTest/chainmaker-go/scripts/
+./cluster_quick_start.sh normal
+./cluster_quick_stop.sh clean
+
+# 修改配置
+cd /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/config/wx-org.chainmaker.org/chainconfig/
+vim bc1.yml 
+
+# 拉取tps文件
+scp root@192.168.2.35:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
+
+#  切换成刚make的链
+cd /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/bin/
+rm -rf chainmaker
+cp /home/performanceTest/chainmaker-go/bin/chainmaker .
+
+# 查看chainmaker进程是否存在
+ps -ef | grep chainmaker | grep -v grep
+
+# 修改Wria的Batchsize大小
+cd /home/performanceTest/chainmaker-go/module/core/common/scheduler/deterministic/wria/
+vim wria_shceduler.go
+
+
+```
+
+
 ### 实验一：Uniform 分布
 
 键的选择服从均匀分布，所有 key 被访问的概率相同。
@@ -26,14 +64,7 @@
 
 **示例**：
 ```bash
-# 低冲突场景（键空间大）
-go run ycsb/*.go -dist uniform -records 10000 -txcount 10000
-
-# 中等冲突场景
-go run ycsb/*.go -dist uniform -records 1000 -txcount 10000
-
-# 高冲突场景（键空间小）
-go run ycsb/*.go -dist uniform -records 100 -txcount 10000
+go run ycsb/*.go -dist uniform -records 10000 -txcount 500000 -goroutines 20
 ```
 
 ### 实验二：Zipfian 分布
@@ -53,19 +84,8 @@ go run ycsb/*.go -dist uniform -records 100 -txcount 10000
 
 **示例**：
 ```bash
-# 轻度倾斜（接近均匀分布）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -skew 0.3
-
-# 中等倾斜（默认值）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -skew 0.99
-
-# 高度倾斜（热点明显）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -skew 1.5
+go run ycsb/*.go -dist zipfian -records 10000 -txcount 500000 -skew 0.1 -goroutines 20
 ```
-
-tail -f system.log | grep -i tps
-scp -r root@192.168.1.10:/data/logs ~/Downloads/
-Add tx failed, TxPool is full
 
 ## 使用方法
 
