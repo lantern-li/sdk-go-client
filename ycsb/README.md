@@ -49,8 +49,6 @@ ps -ef | grep chainmaker | grep -v grep
 # 修改Wria的Batchsize大小
 cd /home/performanceTest/chainmaker-go/module/core/common/scheduler/deterministic/wria/
 vim wria_shceduler.go
-
-
 ```
 
 
@@ -64,7 +62,7 @@ vim wria_shceduler.go
 
 **示例**：
 ```bash
-go run ycsb/*.go -dist uniform -records 10000 -txcount 500000 -goroutines 20
+go run ./ycsb -dist uniform -records 10000 -txcount 500000 -goroutines 20
 ```
 
 ### 实验二：Zipfian 分布
@@ -84,7 +82,7 @@ go run ycsb/*.go -dist uniform -records 10000 -txcount 500000 -goroutines 20
 
 **示例**：
 ```bash
-go run ycsb/*.go -dist zipfian -records 10000 -txcount 500000 -skew 0.1 -goroutines 20
+go run ./ycsb -dist zipfian -records 10000 -txcount 500000 -skew 0.1 -goroutines 20
 ```
 
 ## 使用方法
@@ -98,28 +96,6 @@ go run ycsb/*.go -dist zipfian -records 10000 -txcount 500000 -skew 0.1 -gorouti
 | `-txcount` | 总交易数 | `10000` | `-txcount 100000` |
 | `-goroutines` | 并发 goroutine 数量 | `10` | `-goroutines 100` |
 | `-skew` | Zipfian 分布的偏斜参数（仅用于 zipfian） | `0.99` | `-skew 1.5` |
-
-### 快速开始
-
-#### 1. 运行 Uniform 分布测试
-
-```bash
-# 基本测试（默认参数）
-go run ycsb/*.go
-
-# 自定义参数
-go run ycsb/*.go -dist uniform -records 5000 -txcount 50000 -goroutines 50
-```
-
-#### 2. 运行 Zipfian 分布测试
-
-```bash
-# 默认 Zipfian 参数（skew=0.99）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000
-
-# 高度倾斜场景（skew=1.5）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -skew 1.5 -goroutines 50
-```
 
 ## 测试流程
 
@@ -161,59 +137,6 @@ Zipfian Skew 参数: 0.99
 
 
 ====================== 测试完成 ======================
-```
-
-## 实验建议
-
-### Uniform 分布实验
-
-测试不同 RecordCount 下的性能表现：
-
-```bash
-# 实验 1: 低冲突（大键空间）
-go run ycsb/*.go -dist uniform -records 10000 -txcount 50000 -goroutines 50
-
-# 实验 2: 中等冲突
-go run ycsb/*.go -dist uniform -records 1000 -txcount 50000 -goroutines 50
-
-# 实验 3: 高冲突（小键空间）
-go run ycsb/*.go -dist uniform -records 100 -txcount 50000 -goroutines 50
-
-# 实验 4: 极高冲突
-go run ycsb/*.go -dist uniform -records 50 -txcount 50000 -goroutines 50
-```
-
-### Zipfian 分布实验
-
-测试不同 Skew 参数下的性能表现：
-
-```bash
-# 实验 1: 轻度倾斜（接近均匀）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 50000 -goroutines 50 -skew 0.3
-
-# 实验 2: 中等倾斜（YCSB 默认）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 50000 -goroutines 50 -skew 0.99
-
-# 实验 3: 高度倾斜
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 50000 -goroutines 50 -skew 1.3
-
-# 实验 4: 极度倾斜（热点明显）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 50000 -goroutines 50 -skew 1.8
-```
-
-### 组合实验
-
-固定键空间，比较不同分布：
-
-```bash
-# Uniform 分布
-go run ycsb/*.go -dist uniform -records 1000 -txcount 100000 -goroutines 100
-
-# Zipfian 分布（中等倾斜）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 100000 -goroutines 100 -skew 0.99
-
-# Zipfian 分布（高度倾斜）
-go run ycsb/*.go -dist zipfian -records 1000 -txcount 100000 -goroutines 100 -skew 1.5
 ```
 
 ## 技术细节
@@ -272,40 +195,16 @@ go run ycsb/*.go -dist zipfian -records 1000 -txcount 100000 -goroutines 100 -sk
 3. **监控链状态**：配合链的监控工具观察区块生成速度和交易冲突率
 4. **调整键空间**：根据实际业务场景选择合适的 `RecordCount`
 
-## 示例脚本
-
-创建批量测试脚本 `run_tests.sh`：
-
-```bash
-#!/bin/bash
-
-echo "开始批量测试..."
-
-# Uniform 分布测试
-for records in 100 500 1000 5000; do
-    echo "=== Uniform 分布, RecordCount=$records ==="
-    go run ycsb/*.go -dist uniform -records $records -txcount 10000 -goroutines 50
-    sleep 5
-done
-
-# Zipfian 分布测试
-for skew in 0.5 0.99 1.3 1.8; do
-    echo "=== Zipfian 分布, Skew=$skew ==="
-    go run ycsb/*.go -dist zipfian -records 1000 -txcount 10000 -goroutines 50 -skew $skew
-    sleep 5
-done
-
-echo "测试完成！"
-```
-
-运行脚本：
-```bash
-chmod +x run_tests.sh
-./run_tests.sh
-```
 
 ## 参考资料
 
 - [YCSB (Yahoo! Cloud Serving Benchmark)](https://github.com/brianfrankcooper/YCSB)
 - [Zipfian Distribution - Wikipedia](https://en.wikipedia.org/wiki/Zipf%27s_law)
 - ChainMaker 官方文档
+
+
+## graph使用
+```bash
+go run ./ycsb --generate-graph=true --txcount=50 --dist=zipfian --records=10000 --skew=0.7
+```
+注意 go run ./ycsb 和 go run ./main.go 和 go run ycsb/*.go  的区别

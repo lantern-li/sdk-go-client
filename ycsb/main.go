@@ -55,7 +55,7 @@ func main() {
 	fmt.Println("====================== ChainMaker YCSB 性能测试工具 ======================")
 	fmt.Println("合约: test_rwset_contract")
 	fmt.Println("方法: test_rwset (读3个key，写3个key)")
-	fmt.Println("========================================================================\n")
+	fmt.Println("========================================================================")
 
 	// 验证参数
 	if *distType != "uniform" && *distType != "zipfian" {
@@ -152,7 +152,7 @@ func runTest(client *sdk.ChainClient, config TestConfig) {
 	if config.DistributionType == "zipfian" {
 		fmt.Printf("Zipfian Skew 参数: %.2f\n", config.Skew)
 	}
-	fmt.Println("=================================================\n")
+	fmt.Println("=================================================")
 
 	// 1. 生成交易
 	fmt.Println("步骤 1/2: 生成交易...")

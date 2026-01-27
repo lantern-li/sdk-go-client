@@ -16,17 +16,16 @@ type TxNode struct {
 
 // TxGraph 表示交易依赖图
 type TxGraph struct {
-	Nodes      []*TxNode      // 所有交易节点
-	Edges      map[int][]int  // 边: from -> []to (A依赖B，则A->B)
-	KeyWriters map[string]int // 记录每个key最后一次被哪个交易写入
+	Nodes []*TxNode     // 所有交易节点
+	Edges map[int][]int // 边: from -> []to (A依赖B，则A->B)
+
 }
 
 // NewTxGraph 创建新的交易图
 func NewTxGraph() *TxGraph {
 	return &TxGraph{
-		Nodes:      make([]*TxNode, 0),
-		Edges:      make(map[int][]int),
-		KeyWriters: make(map[string]int),
+		Nodes: make([]*TxNode, 0),
+		Edges: make(map[int][]int),
 	}
 }
 
@@ -35,30 +34,6 @@ func NewTxGraph() *TxGraph {
 //./ycsb_test --generate-graph --txcount=1000 --dist=uniform --records=100
 //# 使用 zipfian 分布生成1000笔交易的依赖图
 //./ycsb_test --generate-graph --txcount=1000 --dist=zipfian --records=100 --skew=0.99
-
-// AddTransaction 添加交易到图中
-func (g *TxGraph) AddTransaction(tx Transaction, txID int) {
-	node := &TxNode{
-		ID:        txID,
-		ReadKeys:  tx.ReadKeys,
-		WriteKeys: tx.WriteKeys,
-	}
-	g.Nodes = append(g.Nodes, node)
-
-	// 分析读依赖：如果当前交易读取的key之前被某个交易写入过，则当前交易依赖那个交易
-	for _, readKey := range tx.ReadKeys {
-		if writerTxID, exists := g.KeyWriters[readKey]; exists {
-			// 当前交易(txID)依赖于写入者交易(writerTxID)
-			// 添加边: txID -> writerTxID
-			g.addEdge(txID, writerTxID)
-		}
-	}
-
-	// 更新写入记录：当前交易写入的key
-	for _, writeKey := range tx.WriteKeys {
-		g.KeyWriters[writeKey] = txID
-	}
-}
 
 // addEdge 添加边（避免重复边）
 func (g *TxGraph) addEdge(from, to int) {
@@ -69,6 +44,48 @@ func (g *TxGraph) addEdge(from, to int) {
 		}
 	}
 	g.Edges[from] = append(g.Edges[from], to)
+}
+
+// BuildDependencyGraph 构建完整的读写依赖图
+// 对于每个交易的读操作，找到所有写入该 key 的交易（无论顺序），建立边
+func BuildDependencyGraph(transactions []Transaction) *TxGraph {
+	graph := NewTxGraph()
+
+	// 第一步：收集所有 key 的写入者
+	// keyWriters[key] = []txID (所有写入该 key 的交易ID列表)
+	keyWriters := make(map[string][]int)
+
+	for txID, tx := range transactions {
+		// 添加节点
+		node := &TxNode{
+			ID:        txID,
+			ReadKeys:  tx.ReadKeys,
+			WriteKeys: tx.WriteKeys,
+		}
+		graph.Nodes = append(graph.Nodes, node)
+
+		// 记录该交易写入的所有 key
+		for _, writeKey := range tx.WriteKeys {
+			keyWriters[writeKey] = append(keyWriters[writeKey], txID)
+		}
+	}
+
+	// 第二步：建立读写依赖边
+	// 对于每个交易的每个读 key，找到所有写入该 key 的交易
+	for txID, tx := range transactions {
+		for _, readKey := range tx.ReadKeys {
+			// 找到所有写入该 key 的交易
+			if writers, exists := keyWriters[readKey]; exists {
+				for _, writerTxID := range writers {
+					// 从读者指向写者：txID -> writerTxID
+					// 注意：即使 writerTxID == txID（自己读自己写），也建立边
+					graph.addEdge(txID, writerTxID)
+				}
+			}
+		}
+	}
+
+	return graph
 }
 
 // GenerateDOT 生成 DOT 格式的图描述文件
@@ -168,19 +185,16 @@ func GenerateTransactionGraph(config TestConfig, outputDir string) error {
 	if config.DistributionType == "zipfian" {
 		fmt.Printf("Zipfian Skew: %.2f\n", config.Skew)
 	}
-	fmt.Println("============================================================\n")
+	fmt.Println("============================================================")
 
 	// 1. 生成交易
 	fmt.Println("步骤 1/4: 生成交易...")
 	transactions := generateTransactions(config)
 	fmt.Printf("✓ 已生成 %d 笔交易\n\n", len(transactions))
 
-	// 2. 构建依赖图
+	// 2. 构建依赖图（新逻辑：考虑所有读写依赖）
 	fmt.Println("步骤 2/4: 分析交易依赖关系...")
-	graph := NewTxGraph()
-	for i, tx := range transactions {
-		graph.AddTransaction(tx, i)
-	}
+	graph := BuildDependencyGraph(transactions)
 	fmt.Printf("✓ 依赖图构建完成\n\n")
 
 	// 3. 输出统计信息
