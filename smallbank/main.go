@@ -304,7 +304,7 @@ func sendTransactions(client *sdk.ChainClient, dist Distribution) {
 		// Send transaction (async mode for maximum throughput)
 		_, err := client.InvokeContract(smallbankContractName, method, "", kvs, -1, false)
 		if err != nil {
-			atomic.AddInt64(&failedTx, 1)
+			atomic.AddInt64(&failedTx, 1) // todo:什么时候会走到这里？
 		} else {
 			atomic.AddInt64(&successTx, 1)
 			atomic.AddInt64(&txTypeCount[txType], 1)
