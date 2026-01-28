@@ -41,10 +41,10 @@ func main() {
 
 	// smallbank合约相关
 	//deploySmallbankContract()
-	invokeSmallbankCreateAccount()
+	//invokeSmallbankCreateAccount()
 	//invokeSmallbankDepositChecking()
 	//invokeSmallbankTransactSaving()
-	//invokeSmallbankAmalgamate()
+	invokeSmallbankAmalgamate()
 	//invokeSmallbankWriteCheck()
 	//invokeSmallbankSendPayment()
 }
@@ -303,8 +303,8 @@ func invokeSmallbankCreateAccount() {
 	panicErr(err)
 
 	// 准备调用参数 - 创建账户
-	accountName := fmt.Sprintf("Bob_1234567890") //Bob_1234567890
-	customerId := fmt.Sprintf("B1234567890")
+	accountName := fmt.Sprintf("Alice_1234567890") //Bob_1234567890
+	customerId := fmt.Sprintf("A1234567890")
 
 	kvs := []*common.KeyValuePair{
 		{

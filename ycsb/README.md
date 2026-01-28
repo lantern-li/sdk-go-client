@@ -19,8 +19,7 @@
 ### 快速测试命令
 ```bash
 # 实时查看测试性能
-cd /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/log/
-tail -f system.log | grep -i tps
+tail -f /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/log/system.log | grep -i tps
 
 # 分析tps
 cd /home/performanceTest/chainmaker-go/
@@ -45,10 +44,6 @@ cp /home/performanceTest/chainmaker-go/bin/chainmaker .
 
 # 查看chainmaker进程是否存在
 ps -ef | grep chainmaker | grep -v grep
-
-# 修改Wria的Batchsize大小
-cd /home/performanceTest/chainmaker-go/module/core/common/scheduler/deterministic/wria/
-vim wria_shceduler.go
 ```
 
 
