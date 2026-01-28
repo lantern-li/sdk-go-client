@@ -138,7 +138,7 @@ func createAccounts(client *sdk.ChainClient, count int) {
 	fmt.Printf("\n==================== Creating %d Accounts ====================\n", count)
 
 	// Create accounts with multiple goroutines
-	numWorkers := 10 //创建账户时，并发的协程数要低一些，避免打爆交易池，最终创建交易没被调度执行，落库等。
+	numWorkers := 15 //创建账户时，并发的协程数要低一些，避免打爆交易池，最终创建交易没被调度执行，落库等。
 	accountChan := make(chan int, count)
 
 	// Fill the channel with account indices
