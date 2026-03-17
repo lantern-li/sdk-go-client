@@ -18,7 +18,6 @@ type TxNode struct {
 type TxGraph struct {
 	Nodes []*TxNode     // 所有交易节点
 	Edges map[int][]int // 边: from -> []to (A依赖B，则A->B)
-
 }
 
 // NewTxGraph 创建新的交易图

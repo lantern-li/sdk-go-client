@@ -33,7 +33,7 @@ const (
 
 func main() {
 	// fact 合约相关
-	//userContractClaim()
+	userContractClaim()
 
 	// test_rwset 合约相关
 	//deployTestRwsetContract()
@@ -44,7 +44,7 @@ func main() {
 	//invokeSmallbankCreateAccount()
 	//invokeSmallbankDepositChecking()
 	//invokeSmallbankTransactSaving()
-	invokeSmallbankAmalgamate()
+	//invokeSmallbankAmalgamate()
 	//invokeSmallbankWriteCheck()
 	//invokeSmallbankSendPayment()
 }

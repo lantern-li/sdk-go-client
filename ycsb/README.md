@@ -31,8 +31,7 @@ cd /home/performanceTest/chainmaker-go/scripts/
 ./cluster_quick_stop.sh clean
 
 # 修改配置
-cd /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/config/wx-org.chainmaker.org/chainconfig/
-vim bc1.yml 
+vim /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/config/wx-org.chainmaker.org/chainconfig/bc1.yml 
 
 # 拉取tps文件
 scp root@192.168.2.35:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
@@ -44,6 +43,9 @@ cp /home/performanceTest/chainmaker-go/bin/chainmaker .
 
 # 查看chainmaker进程是否存在
 ps -ef | grep chainmaker | grep -v grep
+
+# 拉取文件
+scp root@192.168.2.35:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
 ```
 
 
