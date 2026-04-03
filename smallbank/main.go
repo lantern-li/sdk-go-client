@@ -45,10 +45,17 @@ const (
 var (
 	accountPoolSize = flag.Int("accounts", 10000, "Number of accounts to create")
 	goroutineCount  = flag.Int("goroutines", 10, "Number of concurrent goroutines")
-	distribution    = flag.String("dist", "uniform", "Distribution type: uniform or zipfian")
-	zipfParam       = flag.Float64("zipf", 0.9, "Zipfian distribution parameter (0.0-1.0)")
-	txCount         = flag.Int("txcount", 100000, "Number of transactions to send")
+	// Default to 15 to avoid overwhelming the tx pool during account creation.
+	createAccountGoroutineCount = flag.Int("createAccountGoroutines", 15, "Number of concurrent goroutines when creating accounts")
+	distribution                = flag.String("dist", "uniform", "Distribution type: uniform or zipfian")
+	zipfParam                   = flag.Float64("zipf", 0.9, "Zipfian distribution parameter (0.0-1.0)")
+	txCount                     = flag.Int("txcount", 100000, "Number of transactions to send")
 )
+
+func init() {
+	// Backward/typo-friendly alias.
+	flag.IntVar(createAccountGoroutineCount, "creatAccountGoroutines", 15, "Alias of -createAccountGoroutines")
+}
 
 // Statistics
 var (
@@ -73,10 +80,16 @@ const (
 func main() {
 	flag.Parse()
 
+	if *createAccountGoroutineCount < 1 {
+		log.Printf("createAccountGoroutines must be >= 1, got %d; using 1", *createAccountGoroutineCount)
+		*createAccountGoroutineCount = 1
+	}
+
 	fmt.Println("==================== SmallBank Performance Test ====================")
 	fmt.Printf("Configuration:\n")
 	fmt.Printf("  - Account Pool Size: %d\n", *accountPoolSize)
 	fmt.Printf("  - Concurrent Goroutines: %d\n", *goroutineCount)
+	fmt.Printf("  - Create Account Goroutines: %d\n", *createAccountGoroutineCount)
 	fmt.Printf("  - Transaction Count: %d\n", *txCount)
 	fmt.Printf("  - Distribution: %s\n", *distribution)
 	if *distribution == "zipfian" {
@@ -94,7 +107,7 @@ func main() {
 	ensureContractDeployed(client)
 
 	// Create accounts
-	createAccounts(client, *accountPoolSize)
+	createAccounts(client, *accountPoolSize, *createAccountGoroutineCount)
 
 	// Run performance test
 	runPerformanceTest(client)
@@ -134,11 +147,11 @@ func deployContract(client *sdk.ChainClient) {
 	fmt.Printf("  - Tx ID: %s\n", resp.TxId)
 }
 
-func createAccounts(client *sdk.ChainClient, count int) {
+func createAccounts(client *sdk.ChainClient, count int, numWorkers int) {
 	fmt.Printf("\n==================== Creating %d Accounts ====================\n", count)
 
 	// Create accounts with multiple goroutines
-	numWorkers := 15 //创建账户时，并发的协程数要低一些，避免打爆交易池，最终创建交易没被调度执行，落库等。
+	// 创建账户时，并发的协程数要低一些，避免打爆交易池，最终创建交易没被调度执行，落库等。
 	accountChan := make(chan int, count)
 
 	// Fill the channel with account indices

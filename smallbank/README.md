@@ -54,6 +54,7 @@ SmallBank 合约维护 3 个表：
 ```
 -accounts int       要创建的账户数量（默认：10000）
 -goroutines int     并发 goroutine 数量（默认：10）
+-createAccountGoroutines int  创建账户时的并发 goroutine 数量（默认：15）
 -dist string        分布类型：uniform 或 zipfian（默认："uniform"）
 -zipf float         Zipfian 分布参数 0.0-1.0（默认：0.9）
 -txcount int        要发送的交易数量（默认：100000）

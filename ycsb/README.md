@@ -21,31 +21,26 @@
 # 实时查看测试性能
 tail -f /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/log/system.log | grep -i tps
 
-# 分析tps
-cd /home/performanceTest/chainmaker-go/
-go run tools/analyze_tps.go -type reorder
-
 # 启/停链
-cd /home/performanceTest/chainmaker-go/scripts/
-./cluster_quick_start.sh normal
-./cluster_quick_stop.sh clean
+cd /home/performanceTest/chainmaker-go/scripts/ && ./cluster_quick_start.sh normal
+cd /home/performanceTest/chainmaker-go/scripts/ && ./cluster_quick_stop.sh clean
 
 # 修改配置
 vim /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/config/wx-org.chainmaker.org/chainconfig/bc1.yml 
 
 # 拉取tps文件
-scp root@192.168.2.35:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
+scp root@192.168.40.73:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
 
 #  切换成刚make的链
-cd /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/bin/
-rm -rf chainmaker
-cp /home/performanceTest/chainmaker-go/bin/chainmaker .
+cp -f /home/performanceTest/chainmaker-go/bin/chainmaker /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/bin/
 
 # 查看chainmaker进程是否存在
 ps -ef | grep chainmaker | grep -v grep
 
-# 拉取文件
-scp root@192.168.2.35:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
+# 分析TPS
+cd /home/performanceTest/chainmaker-go/tools && go run analyze_tps.go -type 
+
+Chainmaker@2024
 ```
 
 
