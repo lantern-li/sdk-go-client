@@ -12,8 +12,8 @@
 ### 交易结构
 
 每笔交易包含：
-- **读集**：3个不同的 key（保证唯一性）
-- **写集**：3个不同的 key（保证唯一性）
+- **读集**：5个不同的 key（保证唯一性）
+- **写集**：5个不同的 key（保证唯一性）
 - **读集和写集之间的 key 可以重复**（符合真实场景）
 
 ### 快速测试命令
@@ -84,16 +84,19 @@ go run ./ycsb -dist zipfian -records 10000 -txcount 500000 -skew 0.1 -goroutines
 | 参数 | 说明 | 默认值 | 示例 |
 |------|------|--------|------|
 | `-dist` | 分布类型：`uniform` 或 `zipfian` | `uniform` | `-dist zipfian` |
-| `-records` | 键空间大小（RecordCount） | `1000` | `-records 10000` |
-| `-txcount` | 总交易数 | `10000` | `-txcount 100000` |
+| `-records` | 键空间大小（RecordCount） | `1000` | `-records 1000000` |
+| `-txcount` | 总交易数 | `10000` | `-txcount 500000` |
 | `-goroutines` | 并发 goroutine 数量 | `10` | `-goroutines 100` |
 | `-skew` | Zipfian 分布的偏斜参数（仅用于 zipfian） | `0.99` | `-skew 1.5` |
+| `-key-size` | key 的固定字节长度，不足补 `x`，超出截断；0 表示不限制 | `8` | `-key-size=16` |
+| `-value-size` | value 的固定字节长度，不足补 `x`，超出截断；0 表示不限制 | `16` | `-value-size=64` |
 
 ## 测试流程
 
 1. **检查合约**：自动检查 `test_rwset_contract` 合约是否已部署，未部署则自动部署
 2. **生成交易**：根据分布类型和参数生成指定数量的交易
-   - 每笔交易包含 3 个唯一的读 key 和 3 个唯一的写 key
+   - 每笔交易包含 5 个唯一的读 key 和 5 个唯一的写 key
+   - key 和 value 会被 pad 或截断到 `-key-size` / `-value-size` 指定的固定长度
    - 使用对应的分布算法选择 key
 3. **发送交易**：启动多个 goroutine 并发异步发送交易到链上
 
@@ -133,6 +136,17 @@ Zipfian Skew 参数: 0.99
 
 ## 技术细节
 
+### Key / Value 大小控制
+
+key 和 value 均为纯数字字符串，通过 `-key-size` 和 `-value-size` 固定长度：
+- 不足指定长度时，末尾补 `x` 至目标长度
+- 超出指定长度时，截断至目标长度
+- 设为 `0` 时不做任何处理，保留原始字符串
+
+**默认值选取依据**（基于 `-records 1000000 -txcount 500000`）：
+- key index 最大为 `999999`（6位），`key-size=8` 覆盖全部 index 并留 2 bytes 余量
+- value 原始格式为 `{txIndex}_{j}`，最长约 8 bytes，`value-size=16` 留一倍余量
+
 ### 分布算法实现
 
 #### Uniform 分布
@@ -149,8 +163,8 @@ Zipfian Skew 参数: 0.99
 
 ### Key 唯一性保证
 
-- 每笔交易的 3 个读 key 保证互不相同
-- 每笔交易的 3 个写 key 保证互不相同
+- 每笔交易的 5 个读 key 保证互不相同
+- 每笔交易的 5 个写 key 保证互不相同
 - 使用 `SelectUniqueKeys()` 方法进行去重选择
 - 最多尝试 count×10 次，避免死循环
 

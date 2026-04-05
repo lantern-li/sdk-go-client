@@ -6,7 +6,6 @@ import (
 	"log"
 	"strings"
 	"sync"
-	"time"
 
 	"chainmaker.org/chainmaker/pb-go/v2/common"
 	sdk "chainmaker.org/chainmaker/sdk-go/v2"
@@ -25,9 +24,9 @@ const (
 
 // Transaction 交易数据结构
 type Transaction struct {
-	ReadKeys  []string // 3个读key
-	WriteKeys []string // 3个写key
-	Values    []string // 3个写value
+	ReadKeys  []string // 5个读key
+	WriteKeys []string // 5个写key
+	Values    []string // 5个写value
 }
 
 // TestConfig 测试配置
@@ -37,6 +36,8 @@ type TestConfig struct {
 	TotalTxCount     int     // 总交易数
 	GoroutineCount   int     // 并发goroutine数量
 	Skew             float64 // Zipfian分布的偏斜参数（仅用于zipfian）
+	KeySize          int     // key的固定字节长度（0表示不限制）
+	ValueSize        int     // value的固定字节长度（0表示不限制）
 }
 
 var (
@@ -47,6 +48,8 @@ var (
 	goroutineCount = flag.Int("goroutines", 10, "并发goroutine数量")
 	skew           = flag.Float64("skew", 0.99, "Zipfian分布的偏斜参数 (0.0-2.0)")
 	generateGraph  = flag.Bool("generate-graph", false, "生成交易依赖图（不发送到链上）")
+	keySize        = flag.Int("key-size", 8, "key的固定字节长度（0表示不限制）")
+	valueSize      = flag.Int("value-size", 16, "value的固定字节长度（0表示不限制）")
 )
 
 func main() {
@@ -81,6 +84,8 @@ func main() {
 		TotalTxCount:     *totalTxCount,
 		GoroutineCount:   *goroutineCount,
 		Skew:             *skew,
+		KeySize:          *keySize,
+		ValueSize:        *valueSize,
 	}
 
 	// 如果指定了 --generate-graph 参数，则生成图而不是发送交易
@@ -207,20 +212,20 @@ func generateTransactions(config TestConfig) []Transaction {
 
 	// 生成每笔交易
 	for i := 0; i < config.TotalTxCount; i++ {
-		// 选择3个不同的读key
-		readKeyIndexes := selector.SelectUniqueKeys(3)
-		readKeys := make([]string, 3)
-		for j := 0; j < 3; j++ {
-			readKeys[j] = fmt.Sprintf("key_%d", readKeyIndexes[j])
+		// 选择5个不同的读key
+		readKeyIndexes := selector.SelectUniqueKeys(5)
+		readKeys := make([]string, 5)
+		for j := 0; j < 5; j++ {
+			readKeys[j] = padOrTrunc(fmt.Sprintf("%d", readKeyIndexes[j]), config.KeySize)
 		}
 
-		// 选择3个不同的写key
-		writeKeyIndexes := selector.SelectUniqueKeys(3)
-		writeKeys := make([]string, 3)
-		values := make([]string, 3)
-		for j := 0; j < 3; j++ {
-			writeKeys[j] = fmt.Sprintf("key_%d", writeKeyIndexes[j])
-			values[j] = fmt.Sprintf("value_%d_%d_%d", i, j, time.Now().UnixNano())
+		// 选择5个不同的写key
+		writeKeyIndexes := selector.SelectUniqueKeys(5)
+		writeKeys := make([]string, 5)
+		values := make([]string, 5)
+		for j := 0; j < 5; j++ {
+			writeKeys[j] = padOrTrunc(fmt.Sprintf("%d", writeKeyIndexes[j]), config.KeySize)
+			values[j] = padOrTrunc(fmt.Sprintf("%d_%d", i, j), config.ValueSize)
 		}
 
 		transactions[i] = Transaction{
@@ -236,11 +241,11 @@ func generateTransactions(config TestConfig) []Transaction {
 // sendTransactions 发送交易
 func sendTransactions(client *sdk.ChainClient, transactions []Transaction) {
 	for _, tx := range transactions {
-		// 构造参数 - 3个读key和3个写key
+		// 构造参数 - 5个读key和5个写key
 		kvs := []*common.KeyValuePair{
 			// 第一组读参数
 			{Key: "read_key", Value: []byte(tx.ReadKeys[0])},
-			{Key: "read_field", Value: []byte("")}, // 空字符串，使用合约默认值 "data"
+			{Key: "read_field", Value: []byte("")},
 
 			// 第二组读参数
 			{Key: "read_key2", Value: []byte(tx.ReadKeys[1])},
@@ -249,6 +254,14 @@ func sendTransactions(client *sdk.ChainClient, transactions []Transaction) {
 			// 第三组读参数
 			{Key: "read_key3", Value: []byte(tx.ReadKeys[2])},
 			{Key: "read_field3", Value: []byte("")},
+
+			// 第四组读参数
+			{Key: "read_key4", Value: []byte(tx.ReadKeys[3])},
+			{Key: "read_field4", Value: []byte("")},
+
+			// 第五组读参数
+			{Key: "read_key5", Value: []byte(tx.ReadKeys[4])},
+			{Key: "read_field5", Value: []byte("")},
 
 			// 第一组写参数
 			{Key: "write_key", Value: []byte(tx.WriteKeys[0])},
@@ -264,6 +277,16 @@ func sendTransactions(client *sdk.ChainClient, transactions []Transaction) {
 			{Key: "write_key3", Value: []byte(tx.WriteKeys[2])},
 			{Key: "write_field3", Value: []byte("")},
 			{Key: "write_value3", Value: []byte(tx.Values[2])},
+
+			// 第四组写参数
+			{Key: "write_key4", Value: []byte(tx.WriteKeys[3])},
+			{Key: "write_field4", Value: []byte("")},
+			{Key: "write_value4", Value: []byte(tx.Values[3])},
+
+			// 第五组写参数
+			{Key: "write_key5", Value: []byte(tx.WriteKeys[4])},
+			{Key: "write_field5", Value: []byte("")},
+			{Key: "write_value5", Value: []byte(tx.Values[4])},
 		}
 
 		// 发送交易（异步，不等待上链结果以提高吞吐量）
@@ -282,4 +305,21 @@ func panicErr(err error) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+// padOrTrunc 将字符串填充或截断到指定字节长度，size<=0时原样返回
+func padOrTrunc(s string, size int) string {
+	if size <= 0 {
+		return s
+	}
+	b := []byte(s)
+	if len(b) >= size {
+		return string(b[:size])
+	}
+	padded := make([]byte, size)
+	copy(padded, b)
+	for i := len(b); i < size; i++ {
+		padded[i] = 'x'
+	}
+	return string(padded)
 }

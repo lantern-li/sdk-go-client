@@ -70,6 +70,7 @@ go run smallbank/*.go -accounts 1000 -goroutines 10 -txcount 50000 -dist uniform
 #### 使用 Zipfian 分布
 ```bash
 go run smallbank/*.go -accounts 1000 -goroutines 10 -txcount 50000 -dist zipfian -zipf 0.9
+go run smallbank/*.go -accounts 100000 -goroutines 45 -createAccountGoroutines 30 -txcount 500000 -dist zipfian -zipf 0.1
 ```
 
 ### 输出示例
