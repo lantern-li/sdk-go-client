@@ -57,7 +57,7 @@ func main() {
 
 	fmt.Println("====================== ChainMaker YCSB 性能测试工具 ======================")
 	fmt.Println("合约: test_rwset_contract")
-	fmt.Println("方法: test_rwset (读3个key，写3个key)")
+	fmt.Println("方法: test_rwset (读5个key，写5个key)")
 	fmt.Println("========================================================================")
 
 	// 验证参数

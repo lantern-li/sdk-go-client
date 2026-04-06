@@ -166,7 +166,7 @@ key 和 value 均为纯数字字符串，通过 `-key-size` 和 `-value-size` �
 - 每笔交易的 5 个读 key 保证互不相同
 - 每笔交易的 5 个写 key 保证互不相同
 - 使用 `SelectUniqueKeys()` 方法进行去重选择
-- 最多尝试 count×10 次，避免死循环
+- 最多尝试 count×200 次，避免死循环
 
 ### 并发安全
 
