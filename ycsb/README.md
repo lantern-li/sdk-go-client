@@ -1,216 +1,190 @@
-# ChainMaker YCSB 性能测试工具
+# ChainMaker YCSB Performance Test Tool
 
-## 功能说明
+## Overview
 
-基于 YCSB (Yahoo! Cloud Serving Benchmark) 基准测试的 ChainMaker 性能测试工具。使用 `test_rwset_contract` 合约进行性能测试，支持两种键分布模式：
+This is a ChainMaker performance testing tool based on the YCSB (Yahoo! Cloud Serving Benchmark) workload. It runs performance tests using the `test_rwset_contract` contract and supports two key distribution modes:
 
-- **Uniform（均匀分布）**：所有 key 被访问的概率相同
-- **Zipfian（齐普夫分布）**：少数热点 key 被高频访问，符合现实世界的访问模式
+- **Uniform**: all keys are accessed with equal probability
+- **Zipfian**: a small number of hot keys are accessed more frequently, matching real-world access patterns
 
-## 测试场景
+## Workloads
 
-### 交易结构
+### Transaction Shape
 
-每笔交易包含：
-- **读集**：5个不同的 key（保证唯一性）
-- **写集**：5个不同的 key（保证唯一性）
-- **读集和写集之间的 key 可以重复**（符合真实场景）
+Each transaction contains:
+- **Read set**: 5 distinct keys (uniqueness guaranteed)
+- **Write set**: 5 distinct keys (uniqueness guaranteed)
+- **Keys may overlap between the read set and write set** (closer to real scenarios)
 
-### 快速测试命令
+### Quick Command
 ```bash
-# 实时查看测试性能
-tail -f /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/log/system.log | grep -i tps
-
-# 启/停链
-cd /home/performanceTest/chainmaker-go/scripts/ && ./cluster_quick_start.sh normal
-cd /home/performanceTest/chainmaker-go/scripts/ && ./cluster_quick_stop.sh clean
-
-# 修改配置
-vim /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/config/wx-org.chainmaker.org/chainconfig/bc1.yml 
-
-# 拉取tps文件
-scp root@192.168.40.73:/home/performanceTest/chainmaker-go/tools/tps_performance_analysis.html .
-
-#  切换成刚make的链
-cp -f /home/performanceTest/chainmaker-go/bin/chainmaker /home/performanceTest/chainmaker-go/build/release/chainmaker-v2.3.8-wx-org.chainmaker.org/bin/
-
-# 查看chainmaker进程是否存在
-ps -ef | grep chainmaker | grep -v grep
-
-# 分析TPS
-cd /home/performanceTest/chainmaker-go/tools && go run analyze_tps.go -type 
-
-Chainmaker@2024
+go run ./ycsb -dist zipfian -records 1000000 -txcount 500000 -skew 0.1 -goroutines 20
 ```
 
+### Experiment 1: Uniform
 
-### 实验一：Uniform 分布
+Keys are selected uniformly, so every key has the same access probability.
 
-键的选择服从均匀分布，所有 key 被访问的概率相同。
+**Controlling conflicts**: tune `RecordCount` (keyspace size) to create different contention levels:
+- Larger `RecordCount` → fewer conflicts (bigger keyspace, lower collision probability)
+- Smaller `RecordCount` → more conflicts (smaller keyspace, higher collision probability)
 
-**冲突控制**：通过调整 `RecordCount`（键空间大小）来制造不同的冲突场景
-- `RecordCount` 越大 → 冲突越少（key 空间大，碰撞概率低）
-- `RecordCount` 越小 → 冲突越多（key 空间小，碰撞概率高）
-
-**示例**：
+**Example**:
 ```bash
 go run ./ycsb -dist uniform -records 10000 -txcount 500000 -goroutines 20
 ```
 
-### 实验二：Zipfian 分布
+### Experiment 2: Zipfian
 
-键的选择服从齐普夫分布，少数热点 key 被频繁访问，符合 80/20 法则。
+Keys are selected using a Zipfian distribution; a small number of hot keys are accessed frequently (the 80/20 rule).
 
-**冲突控制**：通过调整 `Skew` 参数来制造不同的冲突场景
-- `Skew` 越小（趋向 0）→ 接近均匀分布，冲突较少
-- `Skew` 越大（趋向 1 或大于 1）→ 高度倾斜，热点集中，冲突增多
+**Controlling conflicts**: tune `Skew` to create different contention levels:
+- Smaller `Skew` (towards 0) → closer to uniform, fewer conflicts
+- Larger `Skew` (towards 1 or > 1) → more skewed, hotter keys, more conflicts
 
-**Skew 参数说明**：
-- `0.0`：完全均匀分布
-- `0.5`：轻度倾斜
-- `0.99`：中等倾斜（YCSB 默认值）
-- `1.0`：高度倾斜
-- `1.5` 或更高：极度倾斜，绝大多数访问集中在极少数 key 上
+**Skew guide**:
+- `0.0`: perfectly uniform
+- `0.5`: slightly skewed
+- `0.9`: moderately skewed (YCSB default)
 
-**示例**：
+**Example**:
 ```bash
 go run ./ycsb -dist zipfian -records 10000 -txcount 500000 -skew 0.1 -goroutines 20
 ```
 
-## 使用方法
+## Usage
 
-### 命令行参数
+### CLI Arguments
 
-| 参数 | 说明 | 默认值 | 示例 |
-|------|------|--------|------|
-| `-dist` | 分布类型：`uniform` 或 `zipfian` | `uniform` | `-dist zipfian` |
-| `-records` | 键空间大小（RecordCount） | `1000` | `-records 1000000` |
-| `-txcount` | 总交易数 | `10000` | `-txcount 500000` |
-| `-goroutines` | 并发 goroutine 数量 | `10` | `-goroutines 100` |
-| `-skew` | Zipfian 分布的偏斜参数（仅用于 zipfian） | `0.99` | `-skew 1.5` |
-| `-key-size` | key 的固定字节长度，不足补 `x`，超出截断；0 表示不限制 | `8` | `-key-size=16` |
-| `-value-size` | value 的固定字节长度，不足补 `x`，超出截断；0 表示不限制 | `16` | `-value-size=64` |
+| Flag | Description | Default | Example |
+|------|-------------|---------|---------|
+| `-dist` | Distribution: `uniform` or `zipfian` | `uniform` | `-dist zipfian` |
+| `-records` | Keyspace size (`RecordCount`) | `1000` | `-records 1000000` |
+| `-txcount` | Total transactions | `10000` | `-txcount 500000` |
+| `-goroutines` | Number of concurrent goroutines | `10` | `-goroutines 100` |
+| `-skew` | Zipfian skew parameter (zipfian only) | `0.99` | `-skew 1.5` |
+| `-key-size` | Fixed key length in bytes; pad with `x` if shorter and truncate if longer; `0` means no limit | `8` | `-key-size=16` |
+| `-value-size` | Fixed value length in bytes; pad with `x` if shorter and truncate if longer; `0` means no limit | `16` | `-value-size=64` |
 
-## 测试流程
+## Test Flow
 
-1. **检查合约**：自动检查 `test_rwset_contract` 合约是否已部署，未部署则自动部署
-2. **生成交易**：根据分布类型和参数生成指定数量的交易
-   - 每笔交易包含 5 个唯一的读 key 和 5 个唯一的写 key
-   - key 和 value 会被 pad 或截断到 `-key-size` / `-value-size` 指定的固定长度
-   - 使用对应的分布算法选择 key
-3. **发送交易**：启动多个 goroutine 并发异步发送交易到链上
+1. **Contract check**: automatically checks whether `test_rwset_contract` is deployed; deploys it if missing
+2. **Generate transactions**: generates the configured number of transactions based on distribution and parameters
+   - Each transaction contains 5 unique read keys and 5 unique write keys
+   - Keys and values are padded/truncated to the fixed length specified by `-key-size` / `-value-size`
+   - Keys are selected using the specified distribution
+3. **Send transactions**: concurrently sends transactions to the chain asynchronously using multiple goroutines
 
-## 输出示例
+## Example Output
 
 ```
-====================== ChainMaker YCSB 性能测试工具 ======================
-合约: test_rwset_contract
-方法: test_rwset (读3个key，写3个key)
-========================================================================
+====================== ChainMaker YCSB Performance Test Tool ======================
+Contract: test_rwset_contract
+Method: test_rwset (read 3 keys, write 3 keys)
+==================================================================================
 
-====================== 检查合约状态 ======================
-✓ 合约已存在: test_rwset_contract (version: 1.0.0)
+====================== Checking Contract Status ======================
+✓ Contract exists: test_rwset_contract (version: 1.0.0)
 
-==================== 测试配置 ====================
-分布类型: zipfian
-键空间大小 (RecordCount): 1000
-总交易数: 10000
-并发数: 10 goroutines
-Zipfian Skew 参数: 0.99
-=================================================
+==================== Test Configuration ====================
+Distribution: zipfian
+Keyspace size (RecordCount): 1000
+Total transactions: 10000
+Concurrency: 10 goroutines
+Zipfian skew: 0.99
+===========================================================
 
-步骤 1/2: 生成交易...
-  - 使用齐普夫分布 (Zipfian, skew=0.99)
-✓ 已生成 10000 笔交易
+Step 1/2: Generating transactions...
+  - Using Zipfian distribution (skew=0.99)
+✓ Generated 10000 transactions
 
-步骤 2/2: 发送交易到链上...
+Step 2/2: Sending transactions...
 ------------------------------------------------------------
 
 ------------------------------------------------------------
-✓ 所有交易发送完成
+✓ All transactions sent
 ------------------------------------------------------------
 
-
-====================== 测试完成 ======================
+====================== Done ======================
 ```
 
-## 技术细节
+## Technical Details
 
-### Key / Value 大小控制
+### Key / Value Size Control
 
-key 和 value 均为纯数字字符串，通过 `-key-size` 和 `-value-size` 固定长度：
-- 不足指定长度时，末尾补 `x` 至目标长度
-- 超出指定长度时，截断至目标长度
-- 设为 `0` 时不做任何处理，保留原始字符串
+Keys and values are numeric strings, and their lengths can be fixed using `-key-size` and `-value-size`:
+- If shorter than the target length, pad with `x` to the target length
+- If longer than the target length, truncate to the target length
+- If set to `0`, no padding/truncation is performed and the original string is kept
 
-**默认值选取依据**（基于 `-records 1000000 -txcount 500000`）：
-- key index 最大为 `999999`（6位），`key-size=8` 覆盖全部 index 并留 2 bytes 余量
-- value 原始格式为 `{txIndex}_{j}`，最长约 8 bytes，`value-size=16` 留一倍余量
+**Why the defaults** (based on `-records 1000000 -txcount 500000`):
+- Max key index is `999999` (6 digits); `key-size=8` covers all indices and leaves 2 bytes of headroom
+- Value format is `{txIndex}_{j}`, up to ~8 bytes; `value-size=16` leaves ~2× headroom
 
-### 分布算法实现
+### Distribution Implementation
 
-#### Uniform 分布
-- 使用 Go 标准库的 `rand.Int63n()` 生成均匀分布的随机数
-- 每个 key 被选中的概率相同：P(k) = 1 / RecordCount
+#### Uniform
+- Uses Go's `rand.Int63n()` to generate uniformly distributed random numbers
+- Each key has equal probability: P(k) = 1 / RecordCount
 
-#### Zipfian 分布
-- 实现了经典的 Zipfian 分布算法（参考 YCSB）
-- 概率质量函数：P(k) = (1/k^s) / H(N,s)
-  - k: key 的排名（从 1 开始）
-  - s: 偏斜参数（skew）
-  - H(N,s): 归一化常数（调和级数）
-- 使用逆累积分布函数（Inverse CDF）方法进行采样
+#### Zipfian
+- Implements the classic Zipfian algorithm (YCSB-style)
+- Probability mass function: P(k) = (1/k^s) / H(N,s)
+  - k: key rank (starting from 1)
+  - s: skew parameter (`skew`)
+  - H(N,s): normalization constant (harmonic series)
+- Samples using the inverse CDF method
 
-### Key 唯一性保证
+### Ensuring Key Uniqueness
 
-- 每笔交易的 5 个读 key 保证互不相同
-- 每笔交易的 5 个写 key 保证互不相同
-- 使用 `SelectUniqueKeys()` 方法进行去重选择
-- 最多尝试 count×200 次，避免死循环
+- The 5 read keys within a transaction are guaranteed to be distinct
+- The 5 write keys within a transaction are guaranteed to be distinct
+- Deduplication is done via `SelectUniqueKeys()`
+- Up to count×200 attempts are made to avoid infinite loops
 
-### 并发安全
+### Concurrency Safety
 
-- 所有分布生成器都使用 `sync.Mutex` 保护内部状态
-- 每个 goroutine 使用独立的随机数生成器实例
+- All distribution generators protect internal state with `sync.Mutex`
+- Each goroutine uses an independent RNG instance
 
-## 配置文件
+## Configuration Files
 
-- **SDK 配置**: `../config/sdk_config.yml`
-- **合约字节码**: `../config/test_rwset.wasm`
-- **证书路径**: 在 SDK 配置文件中指定
+- **SDK config**: `../config/sdk_config.yml`
+- **Contract bytecode**: `../config/test_rwset.wasm`
+- **Certificate paths**: configured in the SDK config file
 
-## 合约信息
+## Contract Info
 
-- **合约名称**: `test_rwset_contract`
-- **合约版本**: `1.0.0`
-- **运行时**: WASMER
-- **调用方法**: `test_rwset`
-- **部署超时**: 5 秒
+- **Name**: `test_rwset_contract`
+- **Version**: `1.0.0`
+- **Runtime**: WASMER
+- **Method**: `test_rwset`
+- **Deploy timeout**: 5 seconds
 
-## 注意事项
+## Notes
 
-1. **异步发送**：为了提高吞吐量，交易采用异步方式发送（`withSyncResult: false`），不等待上链结果
-2. **键空间限制**：`RecordCount` 建议不小于 10，以保证 key 选择的多样性
-3. **Skew 参数范围**：建议在 0.0-2.0 之间，超过 2.0 可能导致极端的访问集中
-4. **并发数调整**：根据链的性能和网络带宽调整 `goroutines` 参数
+1. **Async send**: to improve throughput, transactions are sent asynchronously (`withSyncResult: false`) without waiting for commit results
+2. **Keyspace size**: `RecordCount` is recommended to be at least 10 to ensure sufficient key diversity
+3. **Skew range**: recommended within 0.0-2.0; values > 2.0 may cause extreme concentration
+4. **Tuning concurrency**: adjust `goroutines` based on chain performance and network bandwidth
 
-## 性能优化建议
+## Performance Tuning Tips
 
-1. **提高并发数**：增加 `-goroutines` 参数可以提高发送速度
-2. **批量测试**：使用脚本批量运行不同参数组合，观察链的性能表现
-3. **监控链状态**：配合链的监控工具观察区块生成速度和交易冲突率
-4. **调整键空间**：根据实际业务场景选择合适的 `RecordCount`
+1. **Increase concurrency**: raising `-goroutines` can improve send throughput
+2. **Batch runs**: use scripts to sweep different parameter combinations and observe performance
+3. **Monitor chain state**: use monitoring tools to track block production speed and conflict rate
+4. **Adjust keyspace**: choose an appropriate `RecordCount` for your workload
 
-
-## 参考资料
+## References
 
 - [YCSB (Yahoo! Cloud Serving Benchmark)](https://github.com/brianfrankcooper/YCSB)
 - [Zipfian Distribution - Wikipedia](https://en.wikipedia.org/wiki/Zipf%27s_law)
-- ChainMaker 官方文档
+- ChainMaker official documentation
 
+## Graph Generation
 
-## graph使用
 ```bash
 go run ./ycsb --generate-graph=true --txcount=50 --dist=zipfian --records=10000 --skew=0.7
 ```
-注意 go run ./ycsb 和 go run ./main.go 和 go run ycsb/*.go  的区别
+
+Note the difference between `go run ./ycsb`, `go run ./main.go`, and `go run ycsb/*.go`.
