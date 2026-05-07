@@ -6,7 +6,7 @@ When using YCSB or SMALLBANK to send transactions, you must add the `-mod=vendor
 Before sending transactions, please configure the target machine's IP address in `config/sdk_config.yml`. Please locate the `node_addr` field, update the `127.0.0.1` address while keeping the default port `12301`.
 
 # Send YCSB PAYLOAD
-Read the ycsb/README.md to send ycsb transactions.
+Read the `ycsb/README.md` to send ycsb transactions.
 ## Quick Start
 To get started quickly, run the following command to send a YCSB transaction workload:
 ```bash
@@ -14,7 +14,7 @@ go run ./ycsb -mod=vendor -dist zipfian -records 1000000 -txcount 500000 -skew 0
 ```
 
 # Send SMALLBANK PAYLOAD
-Read the smallbank/README.md to send smallbank transactions.
+Read the `smallbank/README.md` to send smallbank transactions.
 ## Quick Start
 To get started quickly, run the following command to send a Smallbank transaction workload:
 ```bash
