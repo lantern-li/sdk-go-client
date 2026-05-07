@@ -1,5 +1,5 @@
-//go:build !linux
-// +build !linux
+//go:build !linux || !cgo || (!gmssl && !tencentsm)
+// +build !linux !cgo !gmssl,!tencentsm
 
 /*
 Copyright (C) BABEC. All rights reserved.
@@ -10,7 +10,6 @@ SPDX-License-Identifier: Apache-2.0
 
 package asym
 
-import "C"
 import (
 	crypto2 "crypto"
 	ecdsa2 "crypto/ecdsa"

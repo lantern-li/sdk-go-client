@@ -1,5 +1,5 @@
-//go:build !linux
-// +build !linux
+//go:build !linux || !cgo || (!gmssl && !tencentsm)
+// +build !linux !cgo !gmssl,!tencentsm
 
 /*
 Copyright (C) BABEC. All rights reserved.
