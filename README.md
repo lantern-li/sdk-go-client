@@ -10,6 +10,7 @@ Read the `ycsb/README.md` to send ycsb transactions.
 ## Quick Start
 To get started quickly, run the following command to send a YCSB transaction workload:
 ```bash
+cd sdk-go-client/
 go run ./ycsb -mod=vendor -dist zipfian -records 1000000 -txcount 500000 -skew 0.1 -goroutines 20
 ```
 
@@ -18,6 +19,7 @@ Read the `smallbank/README.md` to send smallbank transactions.
 ## Quick Start
 To get started quickly, run the following command to send a Smallbank transaction workload:
 ```bash
+cd sdk-go-client/
 go run smallbank/*.go -mod=vendor -accounts 100000 -createAccountGoroutines 5 -goroutines 25 -txcount 500000 -dist zipfian -zipf 0.1
 ```
 **Note**: The value of -createAccountGoroutines should be kept relatively low to ensure all accounts are created successfully.
